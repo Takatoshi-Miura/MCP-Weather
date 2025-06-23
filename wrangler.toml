@@ -1,0 +1,10 @@
+name = "mcp-weather"
+main = "dist/worker.js"
+compatibility_date = "2024-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+[env.production]
+name = "mcp-weather-prod"
+
+[env.staging]
+name = "mcp-weather-staging" 
