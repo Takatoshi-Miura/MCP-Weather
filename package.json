@@ -24,7 +24,7 @@
   "author": "MCP Weather",
   "license": "MIT",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0"
+    "@modelcontextprotocol/sdk": "^1.13.1"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
@@ -32,4 +32,4 @@
     "typescript": "^5.0.0",
     "wrangler": "^3.0.0"
   }
-} 
+}

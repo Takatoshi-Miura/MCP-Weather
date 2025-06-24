@@ -1,8 +1,4 @@
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { 
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+// Cloudflare Workers用の気象情報MCP server
 
 interface WeatherData {
   publicTime: string;
@@ -90,102 +86,8 @@ const CITY_IDS: Record<string, string> = {
 };
 
 class WeatherServerWorker {
-  private server: Server;
-
   constructor() {
-    this.server = new Server(
-      {
-        name: "mcp-weather",
-        version: "1.0.0",
-      },
-      {
-        capabilities: {
-          tools: {},
-        },
-      }
-    );
-
-    this.setupToolHandlers();
-  }
-
-  private setupToolHandlers() {
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
-      return {
-        tools: [
-          {
-            name: "get_weather_overview",
-            description: "指定した都市の天気概況を取得します",
-            inputSchema: {
-              type: "object",
-              properties: {
-                city: {
-                  type: "string",
-                  description: "都市名（例：東京、大阪、札幌など）",
-                  enum: Object.keys(CITY_IDS)
-                },
-              },
-              required: ["city"],
-            },
-          },
-          {
-            name: "get_precipitation_probability",  
-            description: "指定した都市の降水確率を取得します",
-            inputSchema: {
-              type: "object",
-              properties: {
-                city: {
-                  type: "string",
-                  description: "都市名（例：東京、大阪、札幌など）",
-                  enum: Object.keys(CITY_IDS)
-                },
-              },
-              required: ["city"],
-            },
-          },
-          {
-            name: "get_wind_speed",
-            description: "指定した都市の風速情報を取得します",
-            inputSchema: {
-              type: "object",
-              properties: {
-                city: {
-                  type: "string", 
-                  description: "都市名（例：東京、大阪、札幌など）",
-                  enum: Object.keys(CITY_IDS)
-                },
-              },
-              required: ["city"],
-            },
-          },
-        ],
-      };
-    });
-
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      const { name, arguments: args } = request.params;
-
-      try {
-        switch (name) {
-          case "get_weather_overview":
-            return await this.getWeatherOverview(args.city as string);
-          case "get_precipitation_probability":
-            return await this.getPrecipitationProbability(args.city as string);
-          case "get_wind_speed":
-            return await this.getWindSpeed(args.city as string);
-          default:
-            throw new Error(`Unknown tool: ${name}`);
-        }
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `エラーが発生しました: ${error instanceof Error ? error.message : String(error)}`,
-            },
-          ],
-        };
-      }
-    });
+    // Cloudflare Workers版では、HTTPリクエストを直接処理
   }
 
   private async fetchWeatherData(city: string): Promise<WeatherData> {
@@ -292,22 +194,157 @@ class WeatherServerWorker {
 
     try {
       const body = await request.json();
-      const response = await this.server.request(body);
       
-      return new Response(JSON.stringify(response), {
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type'
+      // MCPプロトコルのinitializeメソッドを追加
+      if (body.method === 'initialize') {
+        return new Response(JSON.stringify({
+          jsonrpc: "2.0",
+          id: body.id,
+          result: {
+            capabilities: {
+              tools: {}
+            },
+            protocolVersion: "2024-11-05",
+            serverInfo: {
+              name: "mcp-weather",
+              version: "1.0.0"
+            }
+          }
+        }), {
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type'
+          }
+        });
+      }
+      
+      // MCPリクエストを直接処理
+      if (body.method === 'tools/list') {
+        const tools = [
+          {
+            name: "get_weather_overview",
+            description: "指定した都市の天気概況を取得します",
+            inputSchema: {
+              type: "object",
+              properties: {
+                city: {
+                  type: "string",
+                  description: "都市名（例：東京、大阪、札幌など）",
+                  enum: Object.keys(CITY_IDS)
+                },
+              },
+              required: ["city"],
+            },
+          },
+          {
+            name: "get_precipitation_probability",  
+            description: "指定した都市の降水確率を取得します",
+            inputSchema: {
+              type: "object",
+              properties: {
+                city: {
+                  type: "string",
+                  description: "都市名（例：東京、大阪、札幌など）",
+                  enum: Object.keys(CITY_IDS)
+                },
+              },
+              required: ["city"],
+            },
+          },
+          {
+            name: "get_wind_speed",
+            description: "指定した都市の風速情報を取得します",
+            inputSchema: {
+              type: "object",
+              properties: {
+                city: {
+                  type: "string", 
+                  description: "都市名（例：東京、大阪、札幌など）",
+                  enum: Object.keys(CITY_IDS)
+                },
+              },
+              required: ["city"],
+            },
+          },
+        ];
+        
+        return new Response(JSON.stringify({
+          jsonrpc: "2.0",
+          id: body.id,
+          result: { tools }
+        }), {
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type'
+          }
+        });
+      }
+      
+      if (body.method === 'tools/call') {
+        const { name, arguments: args } = body.params;
+        
+        if (!args) {
+          throw new Error("引数が提供されていません");
         }
+
+        let result;
+        switch (name) {
+          case "get_weather_overview":
+            result = await this.getWeatherOverview(args.city as string);
+            break;
+          case "get_precipitation_probability":
+            result = await this.getPrecipitationProbability(args.city as string);
+            break;
+          case "get_wind_speed":
+            result = await this.getWindSpeed(args.city as string);
+            break;
+          default:
+            throw new Error(`Unknown tool: ${name}`);
+        }
+        
+        return new Response(JSON.stringify({
+          jsonrpc: "2.0",
+          id: body.id,
+          result
+        }), {
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type'
+          }
+        });
+      }
+      
+      return new Response(JSON.stringify({
+        jsonrpc: "2.0",
+        id: body.id,
+        error: { code: -32601, message: `Method not found: ${body.method}` }
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
       });
+      
     } catch (error) {
       return new Response(
-        JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), 
+        JSON.stringify({ 
+          jsonrpc: "2.0",
+          id: null,
+          error: { 
+            code: -32603, 
+            message: error instanceof Error ? error.message : String(error) 
+          } 
+        }), 
         { 
           status: 500,
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
         }
       );
     }

@@ -175,6 +175,10 @@ class WeatherServer {
       const { name, arguments: args } = request.params;
 
       try {
+        if (!args) {
+          throw new Error("引数が提供されていません");
+        }
+
         switch (name) {
           case "get_weather_overview":
             return await this.getWeatherOverview(args.city as string);
