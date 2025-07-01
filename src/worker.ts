@@ -188,6 +188,76 @@ class WeatherServerWorker {
   }
 
   async handleRequest(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    
+    // SSE endpoint for MCP
+    if (url.pathname === '/sse' && request.method === 'GET') {
+      let sseData = 'event: message\n';
+      sseData += 'data: {"jsonrpc":"2.0","method":"notifications/initialized","params":{"capabilities":{"tools":{}}}}\n\n';
+      
+      const tools = [
+        {
+          name: "get_weather_overview",
+          description: "指定した都市の天気概況を取得します",
+          inputSchema: {
+            type: "object",
+            properties: {
+              city: {
+                type: "string",
+                description: "都市名（例：東京、大阪、札幌など）",
+                enum: Object.keys(CITY_IDS)
+              },
+            },
+            required: ["city"],
+          },
+        },
+        {
+          name: "get_precipitation_probability",  
+          description: "指定した都市の降水確率を取得します",
+          inputSchema: {
+            type: "object",
+            properties: {
+              city: {
+                type: "string",
+                description: "都市名（例：東京、大阪、札幌など）",
+                enum: Object.keys(CITY_IDS)
+              },
+            },
+            required: ["city"],
+          },
+        },
+        {
+          name: "get_wind_speed",
+          description: "指定した都市の風速情報を取得します",
+          inputSchema: {
+            type: "object",
+            properties: {
+              city: {
+                type: "string", 
+                description: "都市名（例：東京、大阪、札幌など）",
+                enum: Object.keys(CITY_IDS)
+              },
+            },
+            required: ["city"],
+          },
+        },
+      ];
+      
+      sseData += 'event: tools\n';
+      sseData += `data: ${JSON.stringify({tools})}\n\n`;
+      
+      return new Response(sseData, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Accept, Authorization'
+        }
+      });
+    }
+    
     if (request.method !== 'POST') {
       return new Response('Method not allowed', { status: 405 });
     }
@@ -210,6 +280,21 @@ class WeatherServerWorker {
               version: "1.0.0"
             }
           }
+        }), {
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type'
+          }
+        });
+      }
+      
+      // notifications/initializedメソッドの処理
+      if (body.method === 'notifications/initialized') {
+        return new Response(JSON.stringify({
+          jsonrpc: "2.0",
+          id: body.id || null
         }), {
           headers: {
             'Content-Type': 'application/json',
@@ -357,8 +442,8 @@ export default {
       return new Response(null, {
         headers: {
           'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type'
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Accept, Authorization'
         }
       });
     }
