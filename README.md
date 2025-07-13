@@ -1,17 +1,18 @@
 # MCP-Weather
 
-気象庁APIを使用した天気情報取得MCPサーバー
+気象庁APIを使用した天気情報取得MCPサーバー（OAuth 2.0認証付き）
 
 ## 概要
 
-mcp-weatherは、気象庁の天気予報API（livedoor 天気互換）を使用して、日本各地の天気情報を取得するMCPサーバーです。認証不要で誰でも利用でき、Cloudflare Workersでリモートサーバーとしてもデプロイ可能です。
+mcp-weatherは、気象庁の天気予報API（livedoor 天気互換）を使用して、日本各地の天気情報を取得するMCPサーバーです。OAuth 2.0認証を使用したセキュアなアクセス制御により、Cloudflare Workersでリモートサーバーとしてデプロイ可能です。
 
 ## 特徴
 
-- **認証不要**: ユーザー登録や認証なしで利用可能
+- **OAuth 2.0認証**: セキュアなアクセス制御とトークンベース認証
 - **豊富な気象データ**: 天気概況、降水確率、風速情報を提供
 - **全国対応**: 主要都市の天気データを取得可能
 - **リモート対応**: Cloudflare Workersにデプロイしてリモートサーバーとして利用可能
+- **モバイル対応**: 標準的なOAuthフローでモバイルアプリからも利用可能
 
 ## 利用できるツール
 
@@ -44,19 +45,6 @@ mcp-weatherは、気象庁の天気予報API（livedoor 天気互換）を使用
 npm install
 ```
 
-### ローカル開発
-
-```bash
-# 開発モードで起動
-npm run dev
-
-# ビルド
-npm run build
-
-# 本番モードで起動
-npm start
-```
-
 ### Cloudflare Workersへのデプロイ
 
 1. Wranglerのインストール（未インストールの場合）
@@ -66,44 +54,100 @@ npm install -g wrangler
 
 2. Cloudflareアカウントへのログイン
 ```bash
-wrangler login
+npx wrangler login
 ```
 
-3. デプロイ
-```bash
-# ステージング環境
-wrangler deploy --env staging
+3. KVストレージの作成
+OAuth認証データを保存するためのKVネームスペースを作成します：
 
-# 本番環境
-wrangler deploy --env production
+```bash
+# 本番環境用
+npx wrangler kv:namespace create "OAUTH_KV"
+# 開発環境用
+npx wrangler kv:namespace create "OAUTH_KV" --preview
+```
+
+4. `wrangler.toml`のKV IDを更新
+作成したKVネームスペースのIDを`wrangler.toml`に設定してください。
+
+5. デプロイ
+```bash
+# ビルド
+npm run build
+
+# デプロイ
+npx wrangler deploy
+```
+
+### ローカル開発
+
+```bash
+# 開発モードで起動
+npx wrangler dev
+
+# ビルド
+npm run build
 ```
 
 ## 使用方法
 
-### Claude Desktopでの利用
+### 1. OAuth クライアントの作成
 
-Claude Desktopの設定ファイルに以下を追加：
+まず、OAuth認証用のクライアントを作成します：
 
+```bash
+curl -X POST https://your-worker.workers.dev/oauth/client \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My Weather App",
+    "redirectUris": ["https://your-app.com/callback"]
+  }'
+```
+
+レスポンス例：
 ```json
 {
-  "mcpServers": {
-    "mcp-weather": {
-      "command": "node",
-      "args": ["path/to/mcp-weather/dist/index.js"]
-    }
-  }
+  "client_id": "client_abc123...",
+  "client_secret": "def456...",
+  "name": "My Weather App",
+  "redirect_uris": ["https://your-app.com/callback"]
 }
 ```
 
-### リモートサーバーとしての利用
+### 2. OAuth認証フロー
 
-Cloudflare Workersにデプロイ後、HTTPエンドポイント経由でMCPリクエストを送信できます。
+#### Step 1: 認証コードの取得
+
+ユーザーを認証ページにリダイレクトします：
+
+```
+https://your-worker.workers.dev/oauth/authorize?
+  client_id=client_abc123...&
+  redirect_uri=https://your-app.com/callback&
+  response_type=code&
+  state=random_state_value
+```
+
+#### Step 2: アクセストークンの取得
+
+認証コードを使用してアクセストークンを取得します：
+
+```bash
+curl -X POST https://your-worker.workers.dev/oauth/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=authorization_code&code=AUTH_CODE&client_id=CLIENT_ID&client_secret=CLIENT_SECRET&redirect_uri=REDIRECT_URI"
+```
+
+### 3. MCP APIの利用
+
+認証トークンを使用してMCPリクエストを送信できます：
 
 ```javascript
 const response = await fetch('https://your-worker.workers.dev/', {
   method: 'POST',
   headers: {
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer YOUR_ACCESS_TOKEN'
   },
   body: JSON.stringify({
     jsonrpc: '2.0',
@@ -119,13 +163,88 @@ const response = await fetch('https://your-worker.workers.dev/', {
 });
 ```
 
+### 4. デモ認証情報
+
+開発・テスト用のデモ認証情報：
+- **ユーザー名**: demo
+- **パスワード**: demo123
+
+## 実装例
+
+### JavaScript/Node.js
+```javascript
+// OAuth クライアント作成
+const clientResponse = await fetch('https://mcp-weather.get-weather.workers.dev/oauth/client', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    name: 'Weather App',
+    redirectUris: ['http://localhost:3000/callback']
+  })
+});
+const client = await clientResponse.json();
+
+// 認証フローの開始
+const authUrl = `https://mcp-weather.get-weather.workers.dev/oauth/authorize?client_id=${client.client_id}&redirect_uri=http://localhost:3000/callback&response_type=code&state=xyz`;
+
+// アクセストークンの取得（認証コード取得後）
+const tokenResponse = await fetch('https://mcp-weather.get-weather.workers.dev/oauth/token', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  body: new URLSearchParams({
+    grant_type: 'authorization_code',
+    code: 'RECEIVED_AUTH_CODE',
+    client_id: client.client_id,
+    client_secret: client.client_secret,
+    redirect_uri: 'http://localhost:3000/callback'
+  })
+});
+const tokens = await tokenResponse.json();
+
+// 天気データの取得
+const weatherResponse = await fetch('https://mcp-weather.get-weather.workers.dev/', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${tokens.access_token}`
+  },
+  body: JSON.stringify({
+    jsonrpc: '2.0',
+    id: 1,
+    method: 'tools/call',
+    params: {
+      name: 'get_weather_overview',
+      arguments: { city: '東京' }
+    }
+  })
+});
+const weather = await weatherResponse.json();
+```
+
 ## データソース
 
 本サーバーは「天気予報 API（livedoor 天気互換）」（https://weather.tsukumijima.net/）を使用しています。
 このAPIは気象庁が配信している天気予報データをJSON形式で提供しています。
+
+## セキュリティ
+
+### OAuth 2.0認証
+
+- **認証コード**: 10分間の有効期限
+- **アクセストークン**: 1時間の有効期限
+- **PKCE対応**: モバイルアプリでのセキュアな認証
+
+### 本番環境での設定
+
+本番環境では以下の点にご注意ください：
+
+1. **クライアントシークレット**: 安全に管理し、公開しないでください
+2. **リダイレクトURI**: 信頼できるドメインのみを設定してください
+3. **アクセストークン**: 適切に保護し、HTTPSでのみ送信してください
 
 ## 注意事項
 
 - APIのレスポンスが予期しないデータになった場合、エラーが発生する可能性があります
 - 気象庁HPのAPI構造が変更された場合、サービスが停止する可能性があります
 - 連続したAPIアクセスは避け、適切な間隔を空けてご利用ください
+- OAuth認証のトークンは適切に管理し、第三者に漏洩しないよう注意してください

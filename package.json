@@ -24,9 +24,12 @@
   "author": "MCP Weather",
   "license": "MIT",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.13.1"
+    "@modelcontextprotocol/sdk": "^1.13.1",
+    "@types/uuid": "^10.0.0",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250712.0",
     "@types/node": "^20.0.0",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0",
