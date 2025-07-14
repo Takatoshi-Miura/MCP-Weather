@@ -39,13 +39,81 @@ mcp-weatherは、気象庁の天気予報API（livedoor 天気互換）を使用
 
 ## セットアップ
 
-### 依存関係のインストール
+### Cursorでの使用方法
+
+#### 方法1: 自動トークン更新（推奨）
+```bash
+# プロジェクトディレクトリで実行
+node update-token.cjs
+```
+
+#### 方法2: 手動設定
+1. **OAuth認証トークンの取得**
+```bash
+node get-token.cjs
+```
+
+2. **トークンを手動で更新**
+   - `mcp-weather-remote.cjs`の`ACCESS_TOKEN`を更新
+
+3. **Cursorのmcp.jsonに設定**
+```json
+{
+  "mcp-weather": {
+    "command": "node",
+    "args": ["/Users/it6210/Documents/Program/Github/MCP-Weather/mcp-weather-remote.cjs"]
+  }
+}
+```
+
+#### 環境変数を使用する場合
+```bash
+export MCP_WEATHER_TOKEN="your-token-here"
+```
+
+### トラブルシューティング
+
+#### ツールが認識されない場合
+1. **デバッグ版を使用**
+```json
+{
+  "mcp-weather": {
+    "command": "node",
+    "args": ["/Users/it6210/Documents/Program/Github/MCP-Weather/mcp-weather-debug.cjs"]
+  }
+}
+```
+
+2. **トークンの期限切れ**
+```bash
+node update-token.cjs
+```
+
+3. **Cursorのログを確認**
+   - Cursor > View > Output > MCP
+
+#### ファイル構成
+```
+MCP-Weather/
+├── mcp-weather-remote.cjs    # メインのMCPクライアント
+├── mcp-weather-debug.cjs     # デバッグ版
+├── get-token.cjs             # トークン取得スクリプト
+├── update-token.cjs          # トークン自動更新スクリプト
+└── src/                      # サーバー側コード
+    ├── index.ts
+    ├── worker.ts
+    └── auth.ts
+```
+
+### 開発者向けセットアップ
+
+#### 依存関係のインストール
 
 ```bash
 npm install
 ```
 
-### Cloudflare Workersへのデプロイ
+#### Cloudflare Workersへのデプロイ
 
 1. Wranglerのインストール（未インストールの場合）
 ```bash
@@ -79,7 +147,7 @@ npm run build
 npx wrangler deploy
 ```
 
-### ローカル開発
+#### ローカル開発
 
 ```bash
 # 開発モードで起動
@@ -91,135 +159,40 @@ npm run build
 
 ## 使用方法
 
-### 1. OAuth クライアントの作成
+### Cursorでの利用
 
-まず、OAuth認証用のクライアントを作成します：
-
+1. **トークンの取得と設定**
 ```bash
-curl -X POST https://your-worker.workers.dev/oauth/client \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "My Weather App",
-    "redirectUris": ["https://your-app.com/callback"]
-  }'
+node update-token.cjs
 ```
 
-レスポンス例：
-```json
-{
-  "client_id": "client_abc123...",
-  "client_secret": "def456...",
-  "name": "My Weather App",
-  "redirect_uris": ["https://your-app.com/callback"]
-}
-```
+2. **天気情報の取得**
+   - Cursorで「東京の天気を教えて」と入力
+   - 自動的に適切なツールが呼び出されます
 
-### 2. OAuth認証フロー
-
-#### Step 1: 認証コードの取得
-
-ユーザーを認証ページにリダイレクトします：
-
-```
-https://your-worker.workers.dev/oauth/authorize?
-  client_id=client_abc123...&
-  redirect_uri=https://your-app.com/callback&
-  response_type=code&
-  state=random_state_value
-```
-
-#### Step 2: アクセストークンの取得
-
-認証コードを使用してアクセストークンを取得します：
-
-```bash
-curl -X POST https://your-worker.workers.dev/oauth/token \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=authorization_code&code=AUTH_CODE&client_id=CLIENT_ID&client_secret=CLIENT_SECRET&redirect_uri=REDIRECT_URI"
-```
-
-### 3. MCP APIの利用
-
-認証トークンを使用してMCPリクエストを送信できます：
-
-```javascript
-const response = await fetch('https://your-worker.workers.dev/', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer YOUR_ACCESS_TOKEN'
-  },
-  body: JSON.stringify({
-    jsonrpc: '2.0',
-    id: 1,
-    method: 'tools/call',
-    params: {
-      name: 'get_weather_overview',
-      arguments: {
-        city: '東京'
-      }
-    }
-  })
-});
-```
-
-### 4. デモ認証情報
+### デモ認証情報
 
 開発・テスト用のデモ認証情報：
 - **ユーザー名**: demo
 - **パスワード**: demo123
 
-## 実装例
+## モバイルアプリ開発者向け
 
-### JavaScript/Node.js
-```javascript
-// OAuth クライアント作成
-const clientResponse = await fetch('https://mcp-weather.get-weather.workers.dev/oauth/client', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    name: 'Weather App',
-    redirectUris: ['http://localhost:3000/callback']
-  })
-});
-const client = await clientResponse.json();
+### OAuth 2.0 APIエンドポイント
 
-// 認証フローの開始
-const authUrl = `https://mcp-weather.get-weather.workers.dev/oauth/authorize?client_id=${client.client_id}&redirect_uri=http://localhost:3000/callback&response_type=code&state=xyz`;
+- **クライアント作成**: `POST /oauth/client`
+- **認証開始**: `GET /oauth/authorize`
+- **トークン取得**: `POST /oauth/token`
+- **MCP API**: `POST /` (Bearer認証)
 
-// アクセストークンの取得（認証コード取得後）
-const tokenResponse = await fetch('https://mcp-weather.get-weather.workers.dev/oauth/token', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-  body: new URLSearchParams({
-    grant_type: 'authorization_code',
-    code: 'RECEIVED_AUTH_CODE',
-    client_id: client.client_id,
-    client_secret: client.client_secret,
-    redirect_uri: 'http://localhost:3000/callback'
-  })
-});
-const tokens = await tokenResponse.json();
+### 対応プラットフォーム
 
-// 天気データの取得
-const weatherResponse = await fetch('https://mcp-weather.get-weather.workers.dev/', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${tokens.access_token}`
-  },
-  body: JSON.stringify({
-    jsonrpc: '2.0',
-    id: 1,
-    method: 'tools/call',
-    params: {
-      name: 'get_weather_overview',
-      arguments: { city: '東京' }
-    }
-  })
-});
-const weather = await weatherResponse.json();
-```
+- **iOS**: SFSafariViewController, ASWebAuthenticationSession
+- **Android**: Chrome Custom Tabs, WebView
+- **React Native**: react-native-app-auth
+- **Flutter**: flutter_appauth
+
+詳細な実装例は、プロジェクトのサーバー側コード（`src/`）を参照してください。
 
 ## データソース
 

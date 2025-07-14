@@ -62,7 +62,7 @@ async function getWeatherData(city: string): Promise<WeatherData> {
   }
 
   const response = await fetch(`https://weather.tsukumijima.net/api/forecast/city/${cityId}`);
-  if (!response.ok) {
+    if (!response.ok) {
     throw new Error(`天気データの取得に失敗しました: ${response.status}`);
   }
 
@@ -129,7 +129,7 @@ export default {
         }
       });
     }
-
+    
     // OAuth クライアント作成エンドポイント
     if (url.pathname === '/oauth/client' && request.method === 'POST') {
       try {
@@ -310,10 +310,10 @@ export default {
                   {
                     name: 'get_weather_overview',
                     description: '指定した都市の天気概況を取得します',
-                    inputSchema: {
+            inputSchema: {
                       type: 'object',
-                      properties: {
-                        city: {
+              properties: {
+                city: {
                           type: 'string',
                           description: '都市名（例：東京、大阪、札幌など）',
                           enum: CITIES
@@ -325,10 +325,10 @@ export default {
                   {
                     name: 'get_precipitation_probability',
                     description: '指定した都市の降水確率を取得します',
-                    inputSchema: {
+            inputSchema: {
                       type: 'object',
-                      properties: {
-                        city: {
+              properties: {
+                city: {
                           type: 'string',
                           description: '都市名（例：東京、大阪、札幌など）',
                           enum: CITIES
@@ -340,10 +340,10 @@ export default {
                   {
                     name: 'get_wind_speed',
                     description: '指定した都市の風速情報を取得します',
-                    inputSchema: {
+            inputSchema: {
                       type: 'object',
-                      properties: {
-                        city: {
+              properties: {
+                city: {
                           type: 'string',
                           description: '都市名（例：東京、大阪、札幌など）',
                           enum: CITIES
@@ -378,14 +378,14 @@ export default {
                     code: -32602, 
                     message: 'Invalid params',
                     data: `都市名が無効です。対応都市: ${CITIES.join(', ')}`
-                  }
-                });
-              }
-
+          }
+        });
+      }
+      
               const weatherData = await getWeatherData(city);
 
-              let result;
-              switch (name) {
+        let result;
+        switch (name) {
                 case 'get_weather_overview':
                   result = {
                     city: city,
@@ -402,7 +402,7 @@ export default {
                       image: forecast.image
                     }))
                   };
-                  break;
+            break;
 
                 case 'get_precipitation_probability':
                   result = {
@@ -414,7 +414,7 @@ export default {
                       chanceOfRain: forecast.chanceOfRain
                     }))
                   };
-                  break;
+            break;
 
                 case 'get_wind_speed':
                   result = {
@@ -426,9 +426,9 @@ export default {
                       detail: forecast.detail
                     }))
                   };
-                  break;
+            break;
 
-                default:
+          default:
                   return jsonResponse({
                     jsonrpc: '2.0',
                     id,
@@ -456,10 +456,10 @@ export default {
                   code: -32603, 
                   message: 'Internal error',
                   data: error instanceof Error ? error.message : 'Unknown error'
-                }
-              });
-            }
-
+          }
+        });
+      }
+      
           default:
             return jsonResponse({
               jsonrpc: '2.0',
@@ -467,7 +467,7 @@ export default {
               error: { code: -32601, message: 'Method not found' }
             });
         }
-      } catch (error) {
+    } catch (error) {
         return jsonResponse({
           jsonrpc: '2.0',
           id: null,

@@ -35,7 +35,6 @@ class WeatherMCPClient {
   }
 
   async makeRemoteRequest(method, params = {}) {
-    console.error(`[DEBUG] Making remote request: ${method}`, JSON.stringify(params));
     try {
       const response = await fetch(REMOTE_SERVER_URL, {
         method: 'POST',
@@ -52,21 +51,17 @@ class WeatherMCPClient {
       });
 
       if (!response.ok) {
-        console.error(`[DEBUG] HTTP Error: ${response.status} ${response.statusText}`);
         throw new McpError(ErrorCode.InternalError, `HTTP ${response.status}: ${response.statusText}`);
       }
 
       const data = await response.json();
-      console.error(`[DEBUG] Remote response:`, JSON.stringify(data, null, 2));
       
       if (data.error) {
-        console.error(`[DEBUG] Remote error:`, data.error);
         throw new McpError(ErrorCode.InternalError, data.error);
       }
 
       return data.result;
     } catch (error) {
-      console.error(`[DEBUG] Request failed:`, error);
       if (error instanceof McpError) {
         throw error;
       }
@@ -75,17 +70,12 @@ class WeatherMCPClient {
   }
 
   setupToolHandlers() {
-    console.error('[DEBUG] Setting up tool handlers');
-    
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
-      console.error('[DEBUG] tools/list request received');
       const result = await this.makeRemoteRequest('tools/list');
-      console.error('[DEBUG] tools/list result:', JSON.stringify(result, null, 2));
       return result;
     });
 
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      console.error('[DEBUG] tools/call request received:', JSON.stringify(request.params));
       const { name, arguments: args } = request.params;
       
       const result = await this.makeRemoteRequest('tools/call', {
@@ -93,7 +83,6 @@ class WeatherMCPClient {
         arguments: args,
       });
       
-      console.error('[DEBUG] tools/call result:', JSON.stringify(result, null, 2));
       return result;
     });
   }
@@ -104,23 +93,21 @@ class WeatherMCPClient {
     };
 
     process.on('SIGINT', async () => {
-      console.error('[DEBUG] Received SIGINT, shutting down');
       await this.server.close();
       process.exit(0);
     });
   }
 
   async run() {
-    console.error('[DEBUG] Starting MCP Weather Remote Server');
     const transport = new StdioServerTransport();
     
     // Handle the initialized notification
     this.server.setNotificationHandler(InitializedNotificationSchema, async () => {
-      console.error('[DEBUG] Initialized notification received');
+      // Server is ready
     });
 
     await this.server.connect(transport);
-    console.error('[DEBUG] MCP Weather Remote Server running on stdio');
+    console.error('MCP Weather Remote Server running on stdio');
   }
 }
 

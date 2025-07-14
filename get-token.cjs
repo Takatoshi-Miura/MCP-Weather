@@ -117,19 +117,17 @@ async function main() {
     console.log('✅ アクセストークンを取得しました:');
     console.log(`Bearer ${accessToken}`);
     console.log('');
-    console.log('📝 mcp.jsonに以下を設定してください:');
+    console.log('📝 以下の手順で設定してください:');
+    console.log('');
+    console.log('1. mcp-weather-remote.cjs のACCESS_TOKENを更新:');
+    console.log(`   const ACCESS_TOKEN = '${accessToken}';`);
+    console.log('');
+    console.log('2. mcp.jsonに以下を設定:');
     console.log('');
     console.log(JSON.stringify({
       "mcp-weather": {
-        "command": "npx",
-        "args": [
-          "mcp-remote",
-          "https://mcp-weather.get-weather.workers.dev",
-          "--transport",
-          "http-only",
-          "--header",
-          `Authorization=Bearer ${accessToken}`
-        ]
+        "command": "node",
+        "args": ["/Users/it6210/Documents/Program/Github/MCP-Weather/mcp-weather-remote.cjs"]
       }
     }, null, 2));
     
