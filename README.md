@@ -39,29 +39,65 @@ mcp-weatherは、気象庁の天気予報API（livedoor 天気互換）を使用
 
 ## セットアップ
 
-### Cursorでの使用方法
+### 利用方法の選択
+
+このMCPサーバーは2つの利用方法をサポートしています：
+
+| 利用方法 | 特徴 | 認証 | 設定の複雑さ |
+|---------|------|------|-------------|
+| **ローカルMCPサーバー** | 高速、プライバシー保護、信頼性 | 不要 | 簡単 |
+| **リモートMCPサーバー** | 最新機能、スケーラビリティ | OAuth 2.0 | 中程度 |
+
+### 方法A: ローカルMCPサーバー（推奨・簡単）
+
+認証不要でシンプルに利用できます。
+
+#### 1. 依存関係のインストール
+```bash
+npm install
+```
+
+#### 2. ローカルMCPサーバーをビルド
+```bash
+npm run build:local
+```
+
+#### 3. Cursorのmcp.jsonに設定
+```json
+{
+  "mcp-weather-local": {
+    "command": "node",
+    "args": ["/path/to/MCP-Weather/dist/server/local/index.js"]
+  }
+}
+```
+
+#### 4. 使用開始
+Cursorを再起動して、「東京の天気を教えて」と入力してください。
+
+### 方法B: リモートMCPサーバー（OAuth認証）
 
 #### 方法1: 自動トークン更新（推奨）
 ```bash
 # プロジェクトディレクトリで実行
-node update-token.cjs
+node src/utils/update-token.cjs
 ```
 
 #### 方法2: 手動設定
 1. **OAuth認証トークンの取得**
 ```bash
-node get-token.cjs
+node src/utils/get-token.cjs
 ```
 
 2. **トークンを手動で更新**
-   - `mcp-weather-remote.cjs`の`ACCESS_TOKEN`を更新
+   - `src/client/mcp-weather-remote.cjs`の`ACCESS_TOKEN`を更新
 
 3. **Cursorのmcp.jsonに設定**
 ```json
 {
-  "mcp-weather": {
+  "mcp-weather-remote": {
     "command": "node",
-    "args": ["/Users/it6210/Documents/Program/Github/MCP-Weather/mcp-weather-remote.cjs"]
+    "args": ["/path/to/MCP-Weather/src/client/mcp-weather-remote.cjs"]
   }
 }
 ```
@@ -73,20 +109,31 @@ export MCP_WEATHER_TOKEN="your-token-here"
 
 ### トラブルシューティング
 
-#### ツールが認識されない場合
+#### ローカルMCPサーバーの問題
+1. **依存関係のインストール確認**
+```bash
+npm install
+```
+
+2. **TypeScriptの直接実行**
+```bash
+npm run dev:local
+```
+
+#### リモートMCPサーバーの問題
 1. **デバッグ版を使用**
 ```json
 {
-  "mcp-weather": {
+  "mcp-weather-remote-debug": {
     "command": "node",
-    "args": ["/Users/it6210/Documents/Program/Github/MCP-Weather/mcp-weather-debug.cjs"]
+    "args": ["/path/to/MCP-Weather/src/client/mcp-weather-debug.cjs"]
   }
 }
 ```
 
 2. **トークンの期限切れ**
 ```bash
-node update-token.cjs
+node src/utils/update-token.cjs
 ```
 
 3. **Cursorのログを確認**
@@ -95,14 +142,30 @@ node update-token.cjs
 #### ファイル構成
 ```
 MCP-Weather/
-├── mcp-weather-remote.cjs    # メインのMCPクライアント
-├── mcp-weather-debug.cjs     # デバッグ版
-├── get-token.cjs             # トークン取得スクリプト
-├── update-token.cjs          # トークン自動更新スクリプト
-└── src/                      # サーバー側コード
-    ├── index.ts
-    ├── worker.ts
-    └── auth.ts
+├── src/
+│   ├── server/               # サーバーサイド実装
+│   │   ├── local/            # ローカルサーバー
+│   │   │   └── index.ts      # ローカルMCPサーバー
+│   │   └── remote/           # リモートサーバー
+│   │       ├── worker.ts     # Cloudflare Workers実装
+│   │       └── auth.ts       # OAuth認証サービス
+│   ├── client/               # クライアントサイド実装
+│   │   ├── mcp-weather-remote.cjs  # メインのMCPクライアント
+│   │   └── mcp-weather-debug.cjs   # デバッグ版
+│   └── utils/                # ユーティリティ
+│       ├── get-token.cjs     # トークン取得スクリプト
+│       └── update-token.cjs  # トークン自動更新スクリプト
+├── dist/                     # ビルド出力
+│   └── server/
+│       ├── local/            # ローカルサーバーのビルド出力
+│       └── remote/           # リモートサーバーのビルド出力
+├── node_modules/             # 依存関係
+├── package.json              # プロジェクト設定
+├── package-lock.json         # 依存関係のロック
+├── tsconfig.json             # TypeScript設定（リモート用）
+├── tsconfig.local.json       # TypeScript設定（ローカル用）
+├── wrangler.toml             # Cloudflare Workers設定
+└── README.md
 ```
 
 ### 開発者向けセットアップ
@@ -111,6 +174,19 @@ MCP-Weather/
 
 ```bash
 npm install
+```
+
+#### ローカルMCPサーバーの開発
+
+```bash
+# ローカルサーバーのビルド
+npm run build:local
+
+# ローカルサーバーの開発モード
+npm run dev:local
+
+# ローカルサーバーの型チェック
+npm run type-check:local
 ```
 
 #### Cloudflare Workersへのデプロイ
@@ -159,22 +235,31 @@ npm run build
 
 ## 使用方法
 
-### Cursorでの利用
+### ローカルMCPサーバーでの利用
+
+1. **設定完了後、Cursorを再起動**
+2. **天気情報の取得**
+   - Cursorで「東京の天気を教えて」と入力
+   - 自動的に適切なツールが呼び出されます
+
+### リモートMCPサーバーでの利用
 
 1. **トークンの取得と設定**
 ```bash
-node update-token.cjs
+node src/utils/update-token.cjs
 ```
 
 2. **天気情報の取得**
    - Cursorで「東京の天気を教えて」と入力
    - 自動的に適切なツールが呼び出されます
 
-### デモ認証情報
+### デモ認証情報（リモートMCPサーバー用）
 
 開発・テスト用のデモ認証情報：
 - **ユーザー名**: demo
 - **パスワード**: demo123
+
+※ローカルMCPサーバーを使用する場合は認証不要です。
 
 ## モバイルアプリ開発者向け
 

@@ -9,7 +9,7 @@ async function updateToken() {
   
   // get-token.cjsを実行してトークンを取得
   return new Promise((resolve, reject) => {
-    exec('node get-token.cjs', (error, stdout, stderr) => {
+    exec('node src/utils/get-token.cjs', (error, stdout, stderr) => {
       if (error) {
         reject(error);
         return;
@@ -26,7 +26,7 @@ async function updateToken() {
       console.log(`✅ 新しいトークンを取得: ${newToken}`);
       
       // mcp-weather-remote.cjsを更新
-      const remotePath = path.join(__dirname, 'mcp-weather-remote.cjs');
+      const remotePath = path.join(__dirname, '../client/mcp-weather-remote.cjs');
       let remoteContent = fs.readFileSync(remotePath, 'utf8');
       remoteContent = remoteContent.replace(
         /const ACCESS_TOKEN = process\.env\.MCP_WEATHER_TOKEN \|\| '[^']+';/,
@@ -35,7 +35,7 @@ async function updateToken() {
       fs.writeFileSync(remotePath, remoteContent);
       
       // mcp-weather-debug.cjsを更新
-      const debugPath = path.join(__dirname, 'mcp-weather-debug.cjs');
+      const debugPath = path.join(__dirname, '../client/mcp-weather-debug.cjs');
       let debugContent = fs.readFileSync(debugPath, 'utf8');
       debugContent = debugContent.replace(
         /const ACCESS_TOKEN = process\.env\.MCP_WEATHER_TOKEN \|\| '[^']+';/,

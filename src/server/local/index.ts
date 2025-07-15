@@ -111,7 +111,7 @@ class WeatherServer {
     this.setupToolHandlers();
     
     // エラーハンドリング
-    this.server.onerror = (error) => console.error("[MCP Error]", error);
+    this.server.onerror = (error: any) => console.error("[MCP Error]", error);
     process.on("SIGINT", async () => {
       await this.server.close();
       process.exit(0);
@@ -171,7 +171,7 @@ class WeatherServer {
       };
     });
 
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    this.server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       const { name, arguments: args } = request.params;
 
       try {
@@ -215,7 +215,7 @@ class WeatherServer {
       throw new Error(`気象データの取得に失敗しました: ${response.status}`);
     }
 
-    return response.json();
+    return response.json() as Promise<WeatherData>;
   }
 
   private async getWeatherOverview(city: string) {

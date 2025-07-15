@@ -3,7 +3,7 @@
     "target": "ES2022",
     "lib": ["ES2022"],
     "module": "ESNext",
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "allowJs": true,
@@ -20,16 +20,14 @@
     "noImplicitOverride": true,
     "skipLibCheck": true,
     "isolatedModules": true,
-    "outDir": "./dist/server/remote",
-    "types": ["@cloudflare/workers-types"],
+    "outDir": "./dist/server/local",
     "baseUrl": "."
   },
   "include": [
-    "src/server/remote/worker.ts",
-    "src/server/remote/auth.ts"
+    "src/server/local/index.ts"
   ],
   "exclude": [
-    "src/server/local/index.ts",
+    "src/server/remote/**/*",
     "node_modules"
   ]
-} 
+}

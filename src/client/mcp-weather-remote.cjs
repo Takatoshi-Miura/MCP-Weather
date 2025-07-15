@@ -12,7 +12,7 @@ const {
 const fetch = require('node-fetch');
 
 const REMOTE_SERVER_URL = process.env.MCP_WEATHER_URL || 'https://mcp-weather.get-weather.workers.dev';
-const ACCESS_TOKEN = process.env.MCP_WEATHER_TOKEN || 'token_24a6a14c-cb07-4a65-a3c0-ac96945bab4a';
+const ACCESS_TOKEN = process.env.MCP_WEATHER_TOKEN || 'token_f8b1b2ef-724b-48e1-bbc5-b24b2dd1c60b';
 
 class WeatherMCPClient {
   constructor() {

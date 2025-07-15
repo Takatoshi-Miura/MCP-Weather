@@ -1,5 +1,5 @@
 name = "mcp-weather"
-main = "src/worker.ts"
+main = "src/server/remote/worker.ts"
 compatibility_date = "2024-01-15"
 compatibility_flags = ["nodejs_compat"]
 
